@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة الفريق | Team Flow</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #f8fafc; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #b3b3b3; }
+
+        /* Custom Colors based on #f55 */
+        .text-brand { color: #f55; }
+        .bg-brand { background-color: #f55; }
+        .bg-brand-hover:hover { background-color: #d64444; }
+        .border-brand { border-color: #f55; }
+        .ring-brand:focus { --tw-ring-color: #f55; }
+        
+        /* Glassmorphism for Modal */
+        .glass-overlay {
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+        }
+
+        /* Responsive list max-height to ensure cards visible on small screens */
+        #list-container { max-height: calc(100vh - 220px); }
+        @media (min-width: 1024px) {
+            #list-container { max-height: calc(100vh - 180px); }
+        }
+
+        /* native scrollbar behavior (no custom scrollbar) */
+    </style>
+</head>
+<body class="text-slate-700 h-screen flex flex-col overflow-hidden">
+
+    <div id="toast-container" class="fixed top-5 left-5 z-50 flex flex-col gap-3 pointer-events-none"></div>
+
+    <div id="delete-modal" class="fixed inset-0 z-40 hidden items-center justify-center glass-overlay opacity-0">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm transform scale-90 mx-4">
+            <div class="text-center">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                    <svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg leading-6 font-medium text-slate-900">تأكيد الحذف</h3>
+                <div class="mt-2">
+                    <p class="text-sm text-slate-500">هل أنت متأكد من رغبتك في حذف هذا الموظف؟ لا يمكن التراجع عن هذا الإجراء.</p>
+                </div>
+            </div>
+            <div class="mt-5 sm:mt-6 flex gap-3">
+                <button id="confirm-delete-btn" class="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:text-sm transition-colors">
+                    نعم، احذف
+                </button>
+                <button id="cancel-delete-btn" class="w-full inline-flex justify-center rounded-lg border border-slate-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-slate-700 hover:bg-slate-50 focus:outline-none sm:text-sm transition-colors">
+                    إلغاء
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-4 py-6 h-full flex flex-col max-w-5xl">
+        
+        <header class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-slate-800 flex items-center gap-2">
+                    <span class="w-3 h-8 bg-brand rounded-full inline-block"></span>
+                    إدارة الفريق
+                </h1>
+                <p class="text-slate-500 mt-1 text-sm">قم بإدارة بيانات الموظفين بكل سهولة</p>
+            </div>
+            <div class="text-right hidden sm:block">
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">العدد الكلي</span>
+                <div id="total-count" class="text-2xl font-bold text-brand">0</div>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full overflow-visible pb-4">
+            
+            <div class="lg:col-span-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-fit">
+                <h2 class="text-xl font-bold mb-4 text-slate-700 border-b pb-2">بيانات الموظف</h2>
+                <form id="employee-form" class="space-y-4">
+                    <input type="hidden" id="employee-id">
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">الاسم الكامل</label>
+                        <input type="text" id="name" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 ring-brand focus:border-transparent transition-all" placeholder="أدخل اسم الموظف">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">المسمى الوظيفي</label>
+                        <input type="text" id="role" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 ring-brand focus:border-transparent transition-all" placeholder="مثلاً: مطور واجهات">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-slate-600 mb-1">القسم</label>
+                        <select id="department" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 ring-brand focus:border-transparent transition-all bg-white">
+                            <option value="">اختر القسم...</option>
+                            <option value="التقنية">التقنية والتطوير</option>
+                            <option value="التصميم">التصميم والإبداع</option>
+                            <option value="التسويق">التسويق والمبيعات</option>
+                            <option value="الموارد البشرية">الموارد البشرية</option>
+                        </select>
+                    </div>
+
+                    <div class="pt-4 flex gap-2">
+                        <button type="submit" id="submit-btn" class="flex-1 bg-brand bg-brand-hover text-white font-bold py-2.5 px-4 rounded-lg shadow-lg shadow-red-200 transition-all transform active:scale-95 flex justify-center items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                            <span>إضافة موظف</span>
+                        </button>
+                        <button type="button" id="cancel-edit-btn" class="hidden px-4 py-2.5 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 transition-colors">
+                            إلغاء
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="lg:col-span-8 flex flex-col h-full overflow-visible relative">
+                
+                <div id="empty-state" class="hidden absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-white/50 rounded-2xl border border-dashed border-slate-300">
+                    <div class="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                        <svg class="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-700">القائمة فارغة</h3>
+                    <p class="text-slate-500 max-w-xs">لم تقم بإضافة أي موظفين بعد. ابدأ بإضافة بيانات الفريق من النموذج الجانبي.</p>
+                </div>
+
+                <div id="list-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto pr-2 pb-20 content-start">
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Team Flow App - Logic
+         * نمط البرمجة: Modular Object-Oriented for namespace safety
+         */
+        const App = {
+            // State
+            data: [],
+            editingId: null,
+            deleteTargetId: null,
+            STORAGE_KEY: 'team_flow_db_v1',
+
+            // DOM Elements Cache
+            dom: {
+                form: document.getElementById('employee-form'),
+                nameInput: document.getElementById('name'),
+                roleInput: document.getElementById('role'),
+                deptInput: document.getElementById('department'),
+                idInput: document.getElementById('employee-id'),
+                submitBtn: document.getElementById('submit-btn'),
+                cancelBtn: document.getElementById('cancel-edit-btn'),
+                listContainer: document.getElementById('list-container'),
+                emptyState: document.getElementById('empty-state'),
+                totalCount: document.getElementById('total-count'),
+                modal: document.getElementById('delete-modal'),
+                confirmDeleteBtn: document.getElementById('confirm-delete-btn'),
+                cancelDeleteBtn: document.getElementById('cancel-delete-btn'),
+                toastContainer: document.getElementById('toast-container')
+            },
+
+            // --- Initialization ---
+            init() {
+                // Load data
+                const storedData = localStorage.getItem(this.STORAGE_KEY);
+                if (storedData) {
+                    this.data = JSON.parse(storedData);
+                }
+
+                // Bind Events
+                this.bindEvents();
+                
+                // Initial Render
+                this.render();
+                console.log("🚀 Team Flow App Initialized Successfully");
+            },
+
+            bindEvents() {
+                this.dom.form.addEventListener('submit', (e) => this.handleSubmit(e));
+                this.dom.cancelBtn.addEventListener('click', () => this.resetForm());
+                this.dom.confirmDeleteBtn.addEventListener('click', () => this.executeDelete());
+                this.dom.cancelDeleteBtn.addEventListener('click', () => this.closeModal());
+            },
+
+            // --- CRUD Operations ---
+
+            handleSubmit(e) {
+                e.preventDefault();
+                
+                const name = this.dom.nameInput.value.trim();
+                const role = this.dom.roleInput.value.trim();
+                const dept = this.dom.deptInput.value;
+
+                // Validation with Shake Animation
+                if (!name || !role || !dept) {
+                    this.showToast('يرجى ملء جميع الحقول المطلوبة', 'error');
+                    // Human touch: Shake the form to indicate error
+                    gsap.fromTo(this.dom.form, { x: -5 }, { x: 5, duration: 0.1, repeat: 3, yoyo: true });
+                    return;
+                }
+
+                const employee = {
+                    id: this.editingId || Date.now().toString(),
+                    name,
+                    role,
+                    dept,
+                    createdAt: new Date().toISOString()
+                };
+
+                if (this.editingId) {
+                    // Update Logic
+                    this.data = this.data.map(emp => emp.id === this.editingId ? employee : emp);
+                    this.showToast('تم تحديث بيانات الموظف بنجاح', 'success');
+                    this.updateCardUI(employee);
+                } else {
+                    // Create Logic
+                    this.data.unshift(employee); // Add to top
+                    this.showToast('تمت إضافة الموظف الجديد بنجاح', 'success');
+                    this.renderNewCard(employee);
+                }
+
+                this.save();
+                this.resetForm();
+            },
+
+            requestDelete(id) {
+                this.deleteTargetId = id;
+                this.openModal();
+            },
+
+            executeDelete() {
+                if (!this.deleteTargetId) return;
+
+                // Animate removal first
+                const card = document.getElementById(`card-${this.deleteTargetId}`);
+                
+                // GSAP Exit Animation
+                gsap.to(card, {
+                    opacity: 0,
+                    x: 50,
+                    scale: 0.9,
+                    duration: 0.3,
+                    onComplete: () => {
+                        // Data Logic
+                        this.data = this.data.filter(emp => emp.id !== this.deleteTargetId);
+                        this.save();
+                        this.render(); // Re-render to update layout and empty state
+                        this.closeModal();
+                        this.showToast('تم حذف الموظف من السجلات', 'neutral');
+                        this.deleteTargetId = null;
+                    }
+                });
+            },
+
+            requestEdit(id) {
+                const employee = this.data.find(emp => emp.id === id);
+                if (!employee) return;
+
+                // Populate Form
+                this.dom.idInput.value = employee.id;
+                this.dom.nameInput.value = employee.name;
+                this.dom.roleInput.value = employee.role;
+                this.dom.deptInput.value = employee.dept;
+                
+                this.editingId = id;
+
+                // UI Updates
+                this.dom.submitBtn.innerHTML = `<span>تحديث البيانات</span>`;
+                this.dom.submitBtn.classList.replace('bg-brand', 'bg-slate-800'); // Visual cue for edit mode
+                this.dom.cancelBtn.classList.remove('hidden');
+
+                // Animate focus to form
+                this.dom.nameInput.focus();
+                gsap.from(this.dom.form, { borderColor: '#f55', duration: 0.5, clearProps: 'all' });
+            },
+
+            // --- Rendering & UI Logic ---
+
+            render() {
+                // Update Counts
+                this.dom.totalCount.innerText = this.data.length;
+
+                // Handle Empty State
+                if (this.data.length === 0) {
+                    this.dom.listContainer.innerHTML = '';
+                    this.dom.emptyState.classList.remove('hidden');
+                    gsap.fromTo(this.dom.emptyState, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5 });
+                } else {
+                    this.dom.emptyState.classList.add('hidden');
+                    // Check if full re-render is needed (mostly for init or after bulk delete)
+                    // Note: Ideally, we check Diff, but for this size, simple check is fine.
+                    if (this.dom.listContainer.children.length !== this.data.length) {
+                        this.dom.listContainer.innerHTML = '';
+                        this.data.forEach(emp => this.dom.listContainer.appendChild(this.createCardElement(emp)));
+                    }
+                }
+            },
+
+            renderNewCard(employee) {
+                this.dom.emptyState.classList.add('hidden');
+                this.dom.totalCount.innerText = this.data.length;
+
+                const card = this.createCardElement(employee);
+                this.dom.listContainer.prepend(card);
+
+                // GSAP Entry Animation
+                gsap.fromTo(card, 
+                    { opacity: 0, y: -20, scale: 0.95 }, 
+                    { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: "back.out(1.7)" }
+                );
+            },
+
+            updateCardUI(employee) {
+                const oldCard = document.getElementById(`card-${employee.id}`);
+                const newCard = this.createCardElement(employee);
+                
+                if (oldCard) {
+                    oldCard.replaceWith(newCard);
+                    // Flash effect to indicate update
+                    gsap.fromTo(newCard, { backgroundColor: '#fff5f5' }, { backgroundColor: '#ffffff', duration: 0.5 });
+                }
+            },
+
+            createCardElement(emp) {
+                const div = document.createElement('div');
+                div.id = `card-${emp.id}`;
+                div.className = 'bg-white p-5 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow group relative overflow-hidden min-w-0';
+                
+                // Color coding for departments
+                const deptColors = {
+                    'التقنية': 'bg-blue-100 text-blue-700',
+                    'التصميم': 'bg-purple-100 text-purple-700',
+                    'التسويق': 'bg-orange-100 text-orange-700',
+                    'الموارد البشرية': 'bg-green-100 text-green-700'
+                };
+                const badgeClass = deptColors[emp.dept] || 'bg-gray-100 text-gray-700';
+
+                div.innerHTML = `
+                    <div class="absolute top-0 left-0 w-1 h-full bg-brand opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="inline-block px-2 py-0.5 rounded text-xs font-semibold ${badgeClass} mb-2">${emp.dept}</span>
+                            <h3 class="font-bold text-slate-800 text-lg">${emp.name}</h3>
+                            <p class="text-slate-500 text-sm">${emp.role}</p>
+                        </div>
+                        <div class="flex gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="App.requestEdit('${emp.id}')" class="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors" title="تعديل">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                            </button>
+                            <button onclick="App.requestDelete('${emp.id}')" class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors" title="حذف">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                return div;
+            },
+
+            resetForm() {
+                this.dom.form.reset();
+                this.editingId = null;
+                this.dom.idInput.value = '';
+                
+                // Reset UI Button
+                this.dom.submitBtn.innerHTML = `
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                    <span>إضافة موظف</span>
+                `;
+                this.dom.submitBtn.classList.replace('bg-slate-800', 'bg-brand');
+                this.dom.cancelBtn.classList.add('hidden');
+            },
+
+            save() {
+                localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data));
+            },
+
+            // --- Utilities: Modal & Toast ---
+
+            openModal() {
+                this.dom.modal.classList.remove('hidden');
+                gsap.to(this.dom.modal, { opacity: 1, duration: 0.2 });
+                gsap.fromTo(this.dom.modal.firstElementChild, { scale: 0.9, y: 10 }, { scale: 1, y: 0, duration: 0.3, ease: "back.out(1.5)" });
+            },
+
+            closeModal() {
+                gsap.to(this.dom.modal, { 
+                    opacity: 0, 
+                    duration: 0.2, 
+                    onComplete: () => {
+                        this.dom.modal.classList.add('hidden');
+                        this.deleteTargetId = null;
+                    }
+                });
+            },
+
+            showToast(message, type = 'success') {
+                const toast = document.createElement('div');
+                
+                // Styles based on type
+                const bgColors = {
+                    'success': 'bg-emerald-500',
+                    'error': 'bg-red-500',
+                    'neutral': 'bg-slate-700'
+                };
+                
+                toast.className = `${bgColors[type]} text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 pointer-events-auto min-w-[300px]`;
+                toast.innerHTML = `
+                    <span class="text-xl">${type === 'success' ? '✓' : (type === 'error' ? '!' : 'i')}</span>
+                    <p class="font-medium text-sm">${message}</p>
+                `;
+
+                this.dom.toastContainer.appendChild(toast);
+
+                // Toast Animation Flow
+                const tl = gsap.timeline();
+                tl.fromTo(toast, { x: -50, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: "power2.out" })
+                  .to(toast, { opacity: 0, y: -20, duration: 0.3, delay: 3, onComplete: () => toast.remove() });
+            }
+        };
+
+        // Start App when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => App.init());
+
+        
+
+    </script>
+</body>
+</html>
