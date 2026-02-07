@@ -14,32 +14,27 @@
     <style>
         body { font-family: 'Cairo', sans-serif; background-color: #f8fafc; }
         
-        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
         ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #b3b3b3; }
 
-        /* Custom Colors based on #f55 */
         .text-brand { color: #f55; }
         .bg-brand { background-color: #f55; }
         .bg-brand-hover:hover { background-color: #d64444; }
         .border-brand { border-color: #f55; }
         .ring-brand:focus { --tw-ring-color: #f55; }
         
-        /* Glassmorphism for Modal */
         .glass-overlay {
             background: rgba(0, 0, 0, 0.4);
             backdrop-filter: blur(4px);
         }
 
-        /* Responsive list max-height to ensure cards visible on small screens */
         #list-container { max-height: calc(100vh - 220px); }
         @media (min-width: 1024px) {
             #list-container { max-height: calc(100vh - 180px); }
         }
 
-        /* native scrollbar behavior (no custom scrollbar) */
     </style>
 </head>
 <body class="text-slate-700 h-screen flex flex-col overflow-hidden">
@@ -143,10 +138,6 @@
     </div>
 
     <script>
-        /**
-         * Team Flow App - Logic
-         * نمط البرمجة: Modular Object-Oriented for namespace safety
-         */
         const App = {
             // State
             data: [],
@@ -154,7 +145,6 @@
             deleteTargetId: null,
             STORAGE_KEY: 'team_flow_db_v1',
 
-            // DOM Elements Cache
             dom: {
                 form: document.getElementById('employee-form'),
                 nameInput: document.getElementById('name'),
@@ -172,18 +162,14 @@
                 toastContainer: document.getElementById('toast-container')
             },
 
-            // --- Initialization ---
             init() {
-                // Load data
                 const storedData = localStorage.getItem(this.STORAGE_KEY);
                 if (storedData) {
                     this.data = JSON.parse(storedData);
                 }
 
-                // Bind Events
                 this.bindEvents();
                 
-                // Initial Render
                 this.render();
                 console.log("🚀 Team Flow App Initialized Successfully");
             },
@@ -195,7 +181,6 @@
                 this.dom.cancelDeleteBtn.addEventListener('click', () => this.closeModal());
             },
 
-            // --- CRUD Operations ---
 
             handleSubmit(e) {
                 e.preventDefault();
@@ -204,10 +189,8 @@
                 const role = this.dom.roleInput.value.trim();
                 const dept = this.dom.deptInput.value;
 
-                // Validation with Shake Animation
                 if (!name || !role || !dept) {
                     this.showToast('يرجى ملء جميع الحقول المطلوبة', 'error');
-                    // Human touch: Shake the form to indicate error
                     gsap.fromTo(this.dom.form, { x: -5 }, { x: 5, duration: 0.1, repeat: 3, yoyo: true });
                     return;
                 }
@@ -221,13 +204,11 @@
                 };
 
                 if (this.editingId) {
-                    // Update Logic
                     this.data = this.data.map(emp => emp.id === this.editingId ? employee : emp);
                     this.showToast('تم تحديث بيانات الموظف بنجاح', 'success');
                     this.updateCardUI(employee);
                 } else {
-                    // Create Logic
-                    this.data.unshift(employee); // Add to top
+                    this.data.unshift(employee);
                     this.showToast('تمت إضافة الموظف الجديد بنجاح', 'success');
                     this.renderNewCard(employee);
                 }
@@ -244,20 +225,18 @@
             executeDelete() {
                 if (!this.deleteTargetId) return;
 
-                // Animate removal first
                 const card = document.getElementById(`card-${this.deleteTargetId}`);
                 
-                // GSAP Exit Animation
                 gsap.to(card, {
                     opacity: 0,
                     x: 50,
                     scale: 0.9,
                     duration: 0.3,
                     onComplete: () => {
-                        // Data Logic
+
                         this.data = this.data.filter(emp => emp.id !== this.deleteTargetId);
                         this.save();
-                        this.render(); // Re-render to update layout and empty state
+                        this.render();
                         this.closeModal();
                         this.showToast('تم حذف الموظف من السجلات', 'neutral');
                         this.deleteTargetId = null;
@@ -277,31 +256,24 @@
                 
                 this.editingId = id;
 
-                // UI Updates
                 this.dom.submitBtn.innerHTML = `<span>تحديث البيانات</span>`;
                 this.dom.submitBtn.classList.replace('bg-brand', 'bg-slate-800'); // Visual cue for edit mode
                 this.dom.cancelBtn.classList.remove('hidden');
 
-                // Animate focus to form
                 this.dom.nameInput.focus();
                 gsap.from(this.dom.form, { borderColor: '#f55', duration: 0.5, clearProps: 'all' });
             },
 
-            // --- Rendering & UI Logic ---
 
             render() {
-                // Update Counts
                 this.dom.totalCount.innerText = this.data.length;
 
-                // Handle Empty State
                 if (this.data.length === 0) {
                     this.dom.listContainer.innerHTML = '';
                     this.dom.emptyState.classList.remove('hidden');
                     gsap.fromTo(this.dom.emptyState, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5 });
                 } else {
                     this.dom.emptyState.classList.add('hidden');
-                    // Check if full re-render is needed (mostly for init or after bulk delete)
-                    // Note: Ideally, we check Diff, but for this size, simple check is fine.
                     if (this.dom.listContainer.children.length !== this.data.length) {
                         this.dom.listContainer.innerHTML = '';
                         this.data.forEach(emp => this.dom.listContainer.appendChild(this.createCardElement(emp)));
@@ -316,7 +288,6 @@
                 const card = this.createCardElement(employee);
                 this.dom.listContainer.prepend(card);
 
-                // GSAP Entry Animation
                 gsap.fromTo(card, 
                     { opacity: 0, y: -20, scale: 0.95 }, 
                     { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: "back.out(1.7)" }
@@ -329,7 +300,6 @@
                 
                 if (oldCard) {
                     oldCard.replaceWith(newCard);
-                    // Flash effect to indicate update
                     gsap.fromTo(newCard, { backgroundColor: '#fff5f5' }, { backgroundColor: '#ffffff', duration: 0.5 });
                 }
             },
@@ -339,7 +309,6 @@
                 div.id = `card-${emp.id}`;
                 div.className = 'bg-white p-5 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow group relative overflow-hidden min-w-0';
                 
-                // Color coding for departments
                 const deptColors = {
                     'التقنية': 'bg-blue-100 text-blue-700',
                     'التصميم': 'bg-purple-100 text-purple-700',
@@ -374,7 +343,6 @@
                 this.editingId = null;
                 this.dom.idInput.value = '';
                 
-                // Reset UI Button
                 this.dom.submitBtn.innerHTML = `
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
                     <span>إضافة موظف</span>
@@ -387,7 +355,6 @@
                 localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data));
             },
 
-            // --- Utilities: Modal & Toast ---
 
             openModal() {
                 this.dom.modal.classList.remove('hidden');
@@ -409,7 +376,6 @@
             showToast(message, type = 'success') {
                 const toast = document.createElement('div');
                 
-                // Styles based on type
                 const bgColors = {
                     'success': 'bg-emerald-500',
                     'error': 'bg-red-500',
@@ -424,17 +390,13 @@
 
                 this.dom.toastContainer.appendChild(toast);
 
-                // Toast Animation Flow
                 const tl = gsap.timeline();
                 tl.fromTo(toast, { x: -50, opacity: 0 }, { x: 0, opacity: 1, duration: 0.4, ease: "power2.out" })
                   .to(toast, { opacity: 0, y: -20, duration: 0.3, delay: 3, onComplete: () => toast.remove() });
             }
         };
 
-        // Start App when DOM is ready
         document.addEventListener('DOMContentLoaded', () => App.init());
-
-        
 
     </script>
 </body>
