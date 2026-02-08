@@ -1,3 +1,6 @@
+# An application to collect data on families affected by the war in the Gaza Strip,
+# written in Python and based on the Streamlit framework to convert the code into an interactive and easy-to-use web application,
+# enabling the user to input and output data more easily and practically.
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -707,4 +710,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
